@@ -1,0 +1,208 @@
+<div id="player-wrapper" style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #181818; color: white; padding: 20px; border-radius: 15px; max-width: 400px; margin: auto; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+    
+    <img id="album-art" src="" style="width: 180px; height: 180px; border-radius: 10px; object-fit: cover; margin-bottom: 10px; border: 2px solid #333;">
+    
+    <div style="margin-bottom: 15px;">
+        <h3 id="track-title" style="margin: 5px 0; font-size: 1.1rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Loading...</h3>
+        <p id="track-artist" style="margin: 0; color: #b3b3b3; font-size: 0.85rem;">Artist Name</p>
+    </div>
+
+    <audio id="main-audio" src="" crossorigin="anonymous"></audio>
+
+    <div style="display: flex; justify-content: center; align-items: center; gap: 12px; margin-bottom: 20px;">
+        <button onclick="toggleShuffle()" id="shuffle-btn" title="Shuffle" style="background:none; border:none; color:gray; cursor:pointer; font-size: 1rem;">🔀</button>
+        <button onclick="prevTrack()" style="background:none; border:none; color:white; cursor:pointer; font-size: 1.4rem;">⏮</button>
+        <button onclick="togglePlay()" id="play-btn" style="background:#1DB954; border:none; color:white; width: 45px; height: 45px; border-radius: 50%; cursor:pointer; font-size: 1.1rem;">▶</button>
+        <button onclick="nextTrack()" style="background:none; border:none; color:white; cursor:pointer; font-size: 1.4rem;">⏭</button>
+        <button onclick="toggleRepeat()" id="repeat-btn" title="Repeat One" style="background:none; border:none; color:gray; cursor:pointer; font-size: 1rem;">🔁</button>
+    </div>
+
+    <div id="playlist-container" style="text-align: left; background: #282828; border-radius: 8px; max-height: 150px; overflow-y: auto; padding: 5px;">
+        <ul id="playlist-list" style="list-style: none; padding: 0; margin: 0;"></ul>
+    </div>
+</div>
+
+<script>
+function fixDropboxUrl(url) {
+    if (!url) return "";
+    // Replaces the domain and ensures it ends with raw=1
+    let fixedUrl = url.replace("www.dropbox.com", "dl.dropboxusercontent.com");
+    
+    if (!fixedUrl.includes("raw=1")) {
+        fixedUrl += fixedUrl.includes("?") ? "&raw=1" : "?raw=1";
+    }
+    return fixedUrl;
+}
+
+const songs = [
+    {
+        title: "TV time",
+        artist: "Toby Fox",
+        url: "https://www.dropbox.com/scl/fi/id9498iidookc1z1dvimk/27.-It-s-TV-Time-DELTARUNE-Chapter-3-4-Soundtrack-Toby-Fox-Brandon-Moore.mp3?rlkey=cqwowvq1fysjodf5bcyei3yjx&st=plm9tdfv&dl=0",
+        cover: "data:image/png;base64,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"
+    },
+    {
+        title: "Pursuer Chase Theme",
+        artist: "Die of Death",
+        url: "https://www.dropbox.com/scl/fi/vgpl2f09w820sfpaoau9v/Starvation-V3-Pursuer-Chase-Theme-_-Die-Of-Death-Custom-loop-_1-hour_-Brandon-Moore.mp3?rlkey=ozegj1xxev8c11g01t2s0u2hx&st=yhzjbw0j&dl=0",
+        cover: "https://static.wikitide.net/dieofdeathwiki/4/43/PursuerNewPotrait.png"
+    },
+    {
+        title: "One Bounce Theme",
+        artist: "Die of Death",
+        url: "https://www.dropbox.com/scl/fi/fyyss0qnmutihsula9id1/ONE-BOUNCE-8-Killers-Vs-1-Survivor-_-Die-Of-Death-OST-Brandon-Moore.mp3?rlkey=su53l9gk7ztf6gpkeuug13fbp&st=vtujncv6&dl=0",
+        cover: "data:image/jpeg;base64,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"
+    },
+    {
+      title:"Black Knife",
+      artist:"Toby Fox",
+      url:"https://www.dropbox.com/scl/fi/236m8i4li9ucioy08kg41/30.-Black-Knife-DELTARUNE-Chapter-3-4-Soundtrack-Toby-Fox-Brandon-Moore.mp3?rlkey=wq8r6mlysatiy3zfv4zu1jq3n&st=yt9qstdi&dl=0",
+      cover:"data:image/png;base64,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"
+    },
+    {
+      title:  "Hammer of Justice" ,
+      artist:"Toby Fox"   ,
+      url: "https://www.dropbox.com/scl/fi/kz8ampdsp23ei6netichd/58.-Hammer-of-Justice-DELTARUNE-Chapter-3-4-Soundtrack-Toby-Fox-Brandon-Moore.mp3?rlkey=obzph01ljxo582jstvy56k197&st=56e39xum&dl=0"  ,
+      cover: "data:image/png;base64,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"  ,
+    },
+    {
+        title: "Raise Up Your Bat",
+        artist: "DELTARUNE Ch. 3-4",
+        url: "https://www.dropbox.com/scl/fi/gt75z6z5192b5qndqz7dx/20.-Raise-Up-Your-Bat-DELTARUNE-Chapter-3-4-Soundtrack-Toby-Fox-1-Brandon-Moore.mp3?rlkey=tul3wvg53yry0ev66xmef58bt&st=pxzne619&dl=0",
+        cover: "data:image/png;base64,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"
+    },
+    {
+        title: "GUARDIAN",
+        artist: "Toby Fox / Brandon Moore",
+        url: "https://www.dropbox.com/scl/fi/efcow3oa8jf5e05xr68kd/68.-GUARDIAN-DELTARUNE-Chapter-3-4-Soundtrack-Toby-Fox-Brandon-Moore.mp3?rlkey=u0faux2b2gayz678nkhwkv528&st=cp1u845x&dl=0",
+        cover: "data:image/png;base64,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"
+    }
+
+];
+
+let currentIndex = 0;
+let isPlaying = false;
+let isShuffle = false;
+let isRepeatOne = false;
+
+const audio = document.getElementById('main-audio');
+const playBtn = document.getElementById('play-btn');
+const albumArt = document.getElementById('album-art');
+const trackTitle = document.getElementById('track-title');
+const trackArtist = document.getElementById('track-artist');
+const playlistList = document.getElementById('playlist-list');
+
+// --- FUNCTIONS TO IMPLEMENT ---
+
+function renderPlaylist() {
+    playlistList.innerHTML = "";
+    songs.forEach((song, index) => {
+        const li = document.createElement('li');
+        
+        // --- STYLING (DON'T CHANGE THIS) ---
+        li.innerHTML = `<div style="font-size: 0.85rem; font-weight: bold;">${song.title}</div>
+                        <div style="font-size: 0.7rem; color: #b3b3b3;">${song.artist}</div>`;
+        li.style.padding = "10px";
+        li.style.borderBottom = "1px solid #333";
+        li.style.cursor = "pointer";
+        li.setAttribute('id', `track-${index}`);
+        // ------------------------------------
+
+li.onclick = () => {
+      currentIndex = index;
+      loadTrack(index);
+      playTrack();
+    };
+
+        
+        playlistList.appendChild(li);
+    });
+}
+
+function loadTrack(index) {
+    // TODO: ADD CHOICE FOR LOADING TRACK HERE
+    const song = songs[index];
+audio.src = fixDropboxUrl(song.url);
+albumArt.src = song.cover;
+trackTitle.innerText = song.title;
+trackArtist.innerText = song.artist;
+
+    // Highlight active track (Leave this code alone)
+    songs.forEach((_, i) => {
+        const item = document.getElementById(`track-${i}`);
+        if (item) {
+            item.style.background = (i === index) ? "#3e3e3e" : "transparent";
+            item.style.color = (i === index) ? "#1DB954" : "white";
+        }
+    });
+}
+
+function playTrack() {
+    // TODO: ADD CHOICE FOR PLAYING TRACK HERE
+    audio.play();
+isPlaying = true;
+playBtn.innerText = "⏸";
+
+}
+
+function togglePlay() {
+if (isPlaying) {
+  audio.pause();
+  playBtn.innerText = "▶";
+} else {
+  playTrack();
+  playBtn.innerText = "⏸";
+}
+isPlaying = !isPlaying;
+
+}
+
+function nextTrack() {
+   if (isShuffle) {
+  currentIndex = Math.floor(Math.random() * songs.length);
+} else {
+  currentIndex = (currentIndex + 1) % songs.length;
+}
+loadTrack(currentIndex);
+if (isPlaying) playTrack();
+
+}
+
+function prevTrack() {
+currentIndex = (currentIndex - 1 + songs.length) % songs.length;
+loadTrack(currentIndex);
+if (isPlaying) playTrack();
+
+}
+
+function toggleShuffle() {
+isShuffle = !isShuffle;
+const shuffleBtn = document.getElementById('shuffle-btn');
+shuffleBtn.style.color = isShuffle ? "#1DB954" : "gray";
+shuffleBtn.innerText = isShuffle ? "🔀" : "⮕";
+
+}
+
+function toggleRepeat() {
+isRepeatOne = !isRepeatOne;
+const btn = document.getElementById('repeat-btn');
+btn.innerText = isRepeatOne ? "🔂" : "🔁";
+btn.style.color = isRepeatOne ? "#1DB954" : "gray";
+
+}
+
+audio.onended = () => {
+if (isRepeatOne) {
+  playTrack();
+} else {
+  nextTrack();
+}
+
+};
+
+// Start
+renderPlaylist();
+loadTrack(currentIndex);
+</script>
+
+
